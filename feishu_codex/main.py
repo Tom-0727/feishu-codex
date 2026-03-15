@@ -7,6 +7,7 @@ import threading
 
 import lark_oapi as lark
 from dotenv import load_dotenv
+from lark_oapi.api.im.v1 import P2ImMessageMessageReadV1
 from lark_oapi.api.im.v1 import P2ImMessageReceiveV1
 
 load_dotenv()
@@ -41,10 +42,16 @@ def _on_message(data: P2ImMessageReceiveV1) -> None:
     )
 
 
+def _on_message_read(_: P2ImMessageMessageReadV1) -> None:
+    # Feishu may still deliver read receipts for existing long connections.
+    return
+
+
 _api_client = lark.Client.builder().app_id(APP_ID).app_secret(APP_SECRET).build()
 
 _event_handler = (
     lark.EventDispatcherHandler.builder("", "")
+    .register_p2_im_message_message_read_v1(_on_message_read)
     .register_p2_im_message_receive_v1(_on_message)
     .build()
 )
