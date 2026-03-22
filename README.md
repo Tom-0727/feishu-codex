@@ -55,7 +55,7 @@ uv run feishu-codex
 | `CODEX_CWD` | 可选 | Codex 工作目录，默认 `~` |
 | `CODEX_MODEL` | 可选 | 传给 `codex` 的模型名 |
 | `CODEX_SEARCH` | 可选 | 是否开启 `--search` |
-| `CODEX_FULL_AUTO` | 可选 | 是否开启 `--full-auto`，默认 `true` |
+| `CODEX_FULL_AUTO` | 可选 | 是否开启 `--full-auto`，默认 `true`；当 `CODEX_DANGEROUS=true` 时会自动忽略 |
 | `CODEX_DANGEROUS` | 可选 | 是否开启 `--dangerously-bypass-approvals-and-sandbox`，默认 `false` |
 | `CODEX_EXTRA_ARGS` | 可选 | 追加自定义 Codex CLI 参数 |
 
@@ -72,3 +72,4 @@ uv run feishu-codex
 - 这个版本使用的是本机 `codex` CLI，而不是单独的 Python SDK
 - `CODEX_FULL_AUTO=true` 时，Codex 会在沙箱内尽量自动执行任务
 - 如果你开启 `CODEX_DANGEROUS=true`，相当于允许 Codex 无沙箱执行，风险自负
+- `CODEX_FULL_AUTO` 和 `CODEX_DANGEROUS` 对应的 CLI 参数互斥，不能同时开启

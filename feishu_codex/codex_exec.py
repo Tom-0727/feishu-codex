@@ -57,10 +57,10 @@ def _build_command(prompt: str, thread_id: str | None, output_file: str) -> list
 
     if CODEX_MODEL:
         cmd.extend(["-m", CODEX_MODEL])
-    if CODEX_FULL_AUTO:
-        cmd.append("--full-auto")
     if CODEX_DANGEROUS:
         cmd.append("--dangerously-bypass-approvals-and-sandbox")
+    elif CODEX_FULL_AUTO:
+        cmd.append("--full-auto")
 
     cmd.extend(CODEX_EXTRA_ARGS)
     cmd.extend(["--output-last-message", output_file])
