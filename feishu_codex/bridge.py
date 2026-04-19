@@ -39,9 +39,13 @@ async def handle_message(
     if ALLOWED_USER_IDS and sender_id not in ALLOWED_USER_IDS:
         return
 
-    if text.strip() == "/reset":
-        sessions.clear(chat_id)
-        _send_text(client, chat_id, "✅ 对话已重置，开始新会话。")
+    command = text.strip()
+    if command.startswith("/"):
+        if command == "/reset":
+            sessions.clear(chat_id)
+            _send_text(client, chat_id, "✅ 对话已重置，开始新会话。")
+        else:
+            _send_text(client, chat_id, f"未知指令：{command}")
         return
 
     async with _chat_locks[chat_id]:

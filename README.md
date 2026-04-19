@@ -42,6 +42,7 @@ uv run feishu-codex
 
 - 直接发消息：Codex 回复，并自动维持上下文
 - `/reset`：清空当前 chat 对应的 Codex thread，开启新会话
+- 其他 `/` 开头的消息会作为指令处理，不会发送给 Codex
 
 会话映射保存在 `~/.feishu-codex/sessions.json`。
 

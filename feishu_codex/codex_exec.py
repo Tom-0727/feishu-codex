@@ -85,6 +85,7 @@ async def run_codex(prompt: str, thread_id: str | None = None) -> CodexRunResult
         cwd=CODEX_CWD,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        limit=10 * 1024 * 1024,
     )
 
     stderr_lines: list[str] = []
