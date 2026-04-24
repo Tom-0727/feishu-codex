@@ -1,11 +1,8 @@
-"""Core bridge: receive a Feishu message, call Codex CLI, reply back."""
+"""Core bridge: receive a Feishu message, call Codex, reply back."""
 
 from __future__ import annotations
 
-import asyncio
 import json
-import os
-from collections import defaultdict
 
 import lark_oapi as lark
 from lark_oapi.api.im.v1 import (
@@ -17,66 +14,77 @@ from lark_oapi.api.im.v1 import (
 )
 from lark_oapi.api.im.v1.model.emoji import Emoji
 
-from . import sessions
-from .codex_exec import run_codex
-
-_chat_locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
-
-ALLOWED_USER_IDS: set[str] = set(
-    uid.strip()
-    for uid in os.getenv("ALLOWED_USER_IDS", "").split(",")
-    if uid.strip()
-)
+from .runtime import FeishuCodexRuntime
 
 
 async def handle_message(
-    chat_id: str,
+    runtime: FeishuCodexRuntime,
     sender_id: str,
     text: str,
     message_id: str,
     client: lark.Client,
 ) -> None:
-    if ALLOWED_USER_IDS and sender_id not in ALLOWED_USER_IDS:
+    if runtime.allowed_user_ids and sender_id not in runtime.allowed_user_ids:
         return
 
     command = text.strip()
     if command.startswith("/"):
         if command == "/reset":
-            sessions.clear(chat_id)
-            _send_text(client, chat_id, "✅ 对话已重置，开始新会话。")
+            async with runtime.lock:
+                runtime.sessions.clear()
+            _send_text(client, runtime.chat_id, "✅ 对话已重置，开始新会话。")
+        elif command == "/compact":
+            async with runtime.lock:
+                await _compact_codex(runtime, message_id, client)
         else:
-            _send_text(client, chat_id, f"未知指令：{command}")
+            _send_text(client, runtime.chat_id, f"未知指令：{command}")
         return
 
-    async with _chat_locks[chat_id]:
-        await _run_codex(chat_id, text, message_id, client)
+    async with runtime.lock:
+        await _run_codex(runtime, text, message_id, client)
 
 
-async def _run_codex(chat_id: str, text: str, message_id: str, client: lark.Client) -> None:
+async def _run_codex(runtime: FeishuCodexRuntime, text: str, message_id: str, client: lark.Client) -> None:
     reaction_id = _add_reaction(client, message_id, "Typing")
-    thread_id = sessions.get(chat_id)
+    thread_id = runtime.sessions.get_thread_id()
 
     try:
-        result = await run_codex(prompt=text, thread_id=thread_id)
+        result = await runtime.codex.run(prompt=text, thread_id=thread_id)
     except Exception as exc:
         if reaction_id:
             _remove_reaction(client, message_id, reaction_id)
-        _send_text(client, chat_id, f"❌ Codex 调用失败：{exc}")
+        _send_text(client, runtime.chat_id, f"❌ Codex 调用失败：{exc}")
         return
 
     if reaction_id:
         _remove_reaction(client, message_id, reaction_id)
 
     if result.thread_id:
-        sessions.save(chat_id, result.thread_id)
-
-    if result.exit_code != 0 and not result.final_text:
-        details = result.errors[-1] if result.errors else "未知错误"
-        _send_text(client, chat_id, f"❌ Codex 执行失败：{details}")
-        return
+        runtime.sessions.save_thread_id(result.thread_id)
 
     reply = result.final_text or "(无回复)"
-    _send_text(client, chat_id, reply)
+    _send_text(client, runtime.chat_id, reply)
+
+
+async def _compact_codex(runtime: FeishuCodexRuntime, message_id: str, client: lark.Client) -> None:
+    thread_id = runtime.sessions.get_thread_id()
+    if not thread_id:
+        _send_text(client, runtime.chat_id, "当前会话还没有 Codex thread，无需 compact。")
+        return
+
+    reaction_id = _add_reaction(client, message_id, "Typing")
+    try:
+        await runtime.codex.compact(thread_id)
+    except Exception as exc:
+        if reaction_id:
+            _remove_reaction(client, message_id, reaction_id)
+        _send_text(client, runtime.chat_id, f"❌ Compact 失败：{exc}")
+        return
+
+    if reaction_id:
+        _remove_reaction(client, message_id, reaction_id)
+
+    _send_text(client, runtime.chat_id, "✅ 当前会话已 compact。")
 
 
 def _add_reaction(client: lark.Client, message_id: str, emoji_type: str) -> str | None:

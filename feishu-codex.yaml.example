@@ -1,0 +1,20 @@
+apps:
+  main:
+    app_id: cli_xxx
+    app_secret: xxx
+
+runtimes:
+  long-run-agent-harness:
+    app: main
+    chat_id: oc_xxx
+    allowed_user_ids: []
+    codex:
+      cwd: /home/ubuntu/agents/long-run-agent-harness
+      bin: codex
+      sandbox: workspace-write
+      approval_policy: never
+      skip_git_repo_check: true
+      rpc_timeout_seconds: 60
+      turn_timeout_seconds: 1800
+      compact_timeout_seconds: 600
+      stop_timeout_seconds: 10

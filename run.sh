@@ -1,1 +1,1 @@
-uv run feishu-codex
+uv run feishu-codex "$@"

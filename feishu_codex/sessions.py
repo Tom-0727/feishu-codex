@@ -1,33 +1,33 @@
-"""Persist chat_id -> codex thread_id mappings to disk."""
+"""Runtime-local Codex thread persistence."""
 
 import json
 from pathlib import Path
 
-_STORE = Path.home() / ".feishu-codex" / "sessions.json"
 
+class SessionStore:
+    def __init__(self, path: Path) -> None:
+        self._path = path
 
-def _load() -> dict[str, str]:
-    if not _STORE.exists():
-        return {}
-    try:
-        return json.loads(_STORE.read_text())
-    except Exception:
-        return {}
+    def get_thread_id(self) -> str | None:
+        data = self._load()
+        value = data.get("thread_id")
+        return value if isinstance(value, str) and value else None
 
+    def save_thread_id(self, thread_id: str) -> None:
+        self._write({"thread_id": thread_id})
 
-def get(chat_id: str) -> str | None:
-    return _load().get(chat_id)
+    def clear(self) -> None:
+        self._write({})
 
+    def _load(self) -> dict[str, object]:
+        if not self._path.exists():
+            return {}
+        try:
+            data = json.loads(self._path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        return data if isinstance(data, dict) else {}
 
-def save(chat_id: str, thread_id: str) -> None:
-    _STORE.parent.mkdir(parents=True, exist_ok=True)
-    data = _load()
-    data[chat_id] = thread_id
-    _STORE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
-
-
-def clear(chat_id: str) -> None:
-    data = _load()
-    data.pop(chat_id, None)
-    _STORE.parent.mkdir(parents=True, exist_ok=True)
-    _STORE.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    def _write(self, data: dict[str, object]) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
